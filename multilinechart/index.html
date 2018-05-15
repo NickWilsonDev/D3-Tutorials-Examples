@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style> /* set the CSS */
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+</style>
+<body>
+<div id='tooltip' style='position:absolute;background-color:lightgray;padding:5px'></div>
+
+<!-- load the d3.js library -->    	
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+// set the dimensions and margins of the graph
+var margin = {top: 20, right: 20, bottom: 30, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+
+
+// parse the date / time
+var parseTime = d3.timeParse("%Y-%m-%d %H:%M:%S.%f");
+console.log(parseTime);
+
+// set the ranges
+var x = d3.scaleTime().range([0, width]);
+var y = d3.scaleLinear().range([height, 0]);
+
+// define the line
+var valueline = d3.line()
+    .x(function(d) { return x(d.time); })
+    .y(function(d) { return y(d.temperature); });
+// define the line
+var valueline2 = d3.line()
+    .x(function(d) { return x(d.time); })
+    .y(function(d) { return y(d.humidity); });
+  
+// append the svg obgect to the body of the page
+// appends a 'group' element to 'svg'
+// moves the 'group' element to the top left margin
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+
+let tipBox;
+
+
+const tooltip = d3.select('#tooltip');
+const tooltipLine = svg.append('line');
+
+function removeTooltip() {
+  if (tooltip) tooltip.style('display', 'none');
+  if (tooltipLine) tooltipLine.attr('stroke', 'none');
+}
+
+function drawTooltip() {
+  const year = Math.floor((x.invert(d3.mouse(tipBox.node())[0]) + 5) / 10) * 10;
+  
+//  states.sort((a, b) => {
+//    return b.history.find(h => h.year == year).population - a.history.find(h => h.year == year).population;
+ // })  
+    
+  tooltipLine.attr('stroke', 'black')
+    .attr('x1', x(year))
+    .attr('x2', x(year))
+    .attr('y1', 0)
+    .attr('y2', height);
+  
+  tooltip.html(year)
+    .style('display', 'block')
+    .style('left', d3.event.pageX + 20)
+    .style('top', d3.event.pageY - 20)
+    .selectAll()
+    .data(states).enter()
+    .append('div')
+    .style('color', d => d.color)
+    .html(d => d.name + ': ' + d.history.find(h => h.year == year).population);
+}
+
+
+function draw(data) { //, country) {
+  
+  //var data = data[country];
+  
+  // format the data
+  data.forEach(function(d) {
+      d.time = parseTime(d.time);
+      d.temperature = +d.temperature;
+      d.humidity = +d.humidity;
+  });
+  
+  // sort years ascending
+  data.sort(function(a, b){
+    return a["time"]-b["time"];
+    })
+ 
+  // Scale the range of the data
+  x.domain(d3.extent(data, function(d) { return d.time; }));
+  y.domain([0, d3.max(data, function(d) {
+      return Math.max(d.temperature, d.humidity); })]);
+  
+  // Add the valueline path.
+  svg.append("path")
+      .data([data])
+      .attr("class", "line")
+      .attr("d", valueline);
+  // Add the valueline path.
+  svg.append("path")
+      .data([data])
+      .style("stroke", "red")
+      .attr("class", "line")
+      .attr("d", valueline2);
+  // Add the X Axis
+  svg.append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+
+  // Add the Y Axis
+  svg.append("g")
+      .call(d3.axisLeft(y));
+
+
+    tipBox = svg.append('rect')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('opacity', 0)
+        .on('mousemove', drawTooltip)
+        .on('mouseout', removeTooltip);
+}
+
+// Get the data
+d3.json("data.json", function(error, data) {
+  if (error) throw error;
+  
+  // trigger render
+  draw(data) //, "Afghanistan");
+});
+
+</script>
+</body>
